@@ -1,3 +1,5 @@
+"""Average previously averaged trajectories across probants for each experiment."""
+
 import os
 import pandas as pd
 import numpy as np
@@ -11,7 +13,9 @@ DELIMITER = ";"
 EXPERIMENTS = ["kreis", "ptp", "ptp2", "ptp3", "zikzak", "sequentiell"]
 
 # --- Helper: interpolate each column to target length ---
-def resample_df(df, target_len):
+def resample_df(df: pd.DataFrame, target_len: int) -> pd.DataFrame:
+    """Resample each column to ``target_len`` using linear interpolation."""
+
     def safe_interp(col):
         col = col.astype(float)
         if col.isna().all():
@@ -19,8 +23,9 @@ def resample_df(df, target_len):
         return np.interp(
             np.linspace(0, len(col) - 1, target_len),
             np.arange(len(col)),
-            col
+            col,
         )
+
     return df.apply(safe_interp)
 
 # --- Group all *_mean.csv by experiment ---

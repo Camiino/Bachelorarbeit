@@ -1,3 +1,5 @@
+"""Apply Savitzky–Golay smoothing to final averaged trajectories."""
+
 import os
 import pandas as pd
 import numpy as np

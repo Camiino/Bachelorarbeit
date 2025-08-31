@@ -1,3 +1,5 @@
+"""Interpolate missing marker data and fill gaps using reference recordings."""
+
 import os
 import pandas as pd
 import numpy as np
@@ -18,22 +20,32 @@ SPECIAL_NEIGHBORS = {
     3: [2]
 }
 
-# --- Helpers ---
-
 def load_data(path: str):
+    """Return frame column and data portion of a CSV file."""
+
     df = pd.read_csv(path, delimiter=DELIMITER, encoding="utf-8")
     frame_col = df.columns[0]
     return df[frame_col], df.drop(columns=[frame_col])
 
+
 def interpolate_internal_gaps(df: pd.DataFrame, markers=None) -> pd.DataFrame:
+    """Interpolate NaNs that occur between valid samples."""
+
     if markers:
         cols = [f"{m}_{a}" for m in markers for a in AXES if f"{m}_{a}" in df.columns]
-        df[cols] = df[cols].astype(float).interpolate(method="linear", limit_direction="both", limit_area="inside")
+        df[cols] = df[cols].astype(float).interpolate(
+            method="linear", limit_direction="both", limit_area="inside"
+        )
     else:
-        df = df.astype(float).interpolate(method="linear", limit_direction="both", limit_area="inside")
+        df = df.astype(float).interpolate(
+            method="linear", limit_direction="both", limit_area="inside"
+        )
     return df
 
+
 def fill_trailing_with_neighbors(df: pd.DataFrame, target_id: int, neighbor_ids):
+    """Extrapolate missing trailing values of ``target_id`` from neighbor markers."""
+
     for axis in AXES:
         t_col = f"{target_id}_{axis}"
         neighbor_cols = [f"{nid}_{axis}" for nid in neighbor_ids if f"{nid}_{axis}" in df.columns]
@@ -46,8 +58,8 @@ def fill_trailing_with_neighbors(df: pd.DataFrame, target_id: int, neighbor_ids)
 
         best_col = max(
             neighbor_cols,
-            key=lambda col: df[col].iloc[last_valid+1:].notna().sum(),
-            default=None
+            key=lambda col: df[col].iloc[last_valid + 1 :].notna().sum(),
+            default=None,
         )
 
         if not best_col:
@@ -63,7 +75,10 @@ def fill_trailing_with_neighbors(df: pd.DataFrame, target_id: int, neighbor_ids)
             df.at[i, t_col] = value
     return df
 
+
 def fill_leading_with_neighbors(df: pd.DataFrame, target_id: int, neighbor_ids):
+    """Extrapolate missing leading values of ``target_id`` using neighbors."""
+
     for axis in AXES:
         t_col = f"{target_id}_{axis}"
         neighbor_cols = [f"{nid}_{axis}" for nid in neighbor_ids if f"{nid}_{axis}" in df.columns]
@@ -77,7 +92,7 @@ def fill_leading_with_neighbors(df: pd.DataFrame, target_id: int, neighbor_ids):
         best_col = max(
             neighbor_cols,
             key=lambda col: df[col].iloc[:first_valid].notna().sum(),
-            default=None
+            default=None,
         )
 
         if not best_col:
@@ -93,7 +108,10 @@ def fill_leading_with_neighbors(df: pd.DataFrame, target_id: int, neighbor_ids):
             df.at[i, t_col] = value
     return df
 
+
 def fill_from_reference(df: pd.DataFrame, marker_id: int, ref_df: pd.DataFrame):
+    """Use a reference recording to fill missing head/tail segments."""
+
     for axis in AXES:
         col = f"{marker_id}_{axis}"
         if col not in df.columns or col not in ref_df.columns:
@@ -104,29 +122,31 @@ def fill_from_reference(df: pd.DataFrame, marker_id: int, ref_df: pd.DataFrame):
             continue
 
         ref_deltas = np.diff(ref_values)
-        ref_cumsum = np.concatenate([[0], np.cumsum(ref_deltas)])
 
         # --- Leading fill ---
         first_valid = df[col].first_valid_index()
         if first_valid is not None and first_valid > 0:
-            stretch = np.linspace(0, len(ref_deltas)-1, first_valid).astype(int)
+            stretch = np.linspace(0, len(ref_deltas) - 1, first_valid).astype(int)
             deltas = ref_deltas[stretch]
             start_value = df.at[first_valid, col]
             leading_values = start_value - np.cumsum(deltas[::-1])[::-1]
-            df.loc[:first_valid-1, col] = leading_values
+            df.loc[: first_valid - 1, col] = leading_values
 
         # --- Trailing fill ---
         last_valid = df[col].last_valid_index()
         if last_valid is not None and last_valid < len(df) - 1:
             trailing_len = len(df) - last_valid - 1
-            stretch = np.linspace(0, len(ref_deltas)-1, trailing_len).astype(int)
+            stretch = np.linspace(0, len(ref_deltas) - 1, trailing_len).astype(int)
             deltas = ref_deltas[stretch]
             start_value = df.at[last_valid, col]
             trailing_values = start_value + np.cumsum(deltas)
-            df.loc[last_valid+1:, col] = trailing_values
+            df.loc[last_valid + 1 :, col] = trailing_values
     return df
 
+
 def report_remaining_nans(df: pd.DataFrame):
+    """Print a summary of any columns that still contain ``NaN`` values."""
+
     missing = df.isna().sum()
     leftovers = missing[missing > 0]
     if len(leftovers):
@@ -139,6 +159,8 @@ def report_remaining_nans(df: pd.DataFrame):
 # --- Experiment Detection ---
 
 def detect_experiment_type(path: str) -> str:
+    """Return the experiment type encoded in ``path`` if known."""
+
     lowered = path.lower()
     for exp in EXPERIMENT_TYPES:
         if exp in lowered:
@@ -148,6 +170,8 @@ def detect_experiment_type(path: str) -> str:
 # --- Core Processing ---
 
 def interpolate_csv(input_path, output_path, ref_map):
+    """Interpolate a single CSV and store the result."""
+
     try:
         print(f"\n🔄 Processing: {input_path}")
         experiment = detect_experiment_type(input_path)
@@ -181,12 +205,14 @@ def interpolate_csv(input_path, output_path, ref_map):
         print(f"✅ Saved: {output_path}")
         report_remaining_nans(filled)
 
-    except Exception as e:
+    except Exception as e:  # pragma: no cover - diagnostic
         print(f"❌ Failed: {input_path} → {e}")
 
 # --- Load All Reference Files ---
 
 def load_reference_map():
+    """Load optional reference recordings for markers 4 and 5."""
+
     ref_map = {}
     for exp in EXPERIMENT_TYPES:
         ref_map[exp] = {}

@@ -1,3 +1,11 @@
+"""Clean formatted CSV files and prepare them for interpolation.
+
+The script reads every file from ``Exports/Daten_Raw_Formatted`` and performs a
+number of clean‑up steps: detection of marker columns, conversion of German
+decimal numbers and replacement of missing base marker values with data from
+temporary markers. The cleaned files are written to ``Exports/Daten_Raw_Clean``.
+"""
+
 import os
 import pandas as pd
 import numpy as np
@@ -8,7 +16,14 @@ input_root = "Exports/Daten_Raw_Formatted"
 output_root = "Exports/Daten_Raw_Clean"
 
 # --- Determine base_markers based on file/folder name ---
-def determine_base_markers(path):
+def determine_base_markers(path: str) -> list:
+    """Return base marker IDs based on the file name.
+
+    Some experiments only track a subset of markers. By inspecting the file or
+    directory name we decide which base markers should remain in the cleaned
+    file.
+    """
+
     lower = path.lower()
     if any(k in lower for k in ["gewicht", "greifen", "präzision"]):
         return [1, 2, 3, 4, 5]
@@ -20,22 +35,30 @@ def determine_base_markers(path):
 
 # --- Parse custom German decimal format safely ---
 def parse_val(val):
+    """Convert strings with German decimal format to floats.
+
+    The raw data sometimes contains spaces or dots as thousand separators. This
+    helper removes these artefacts and returns ``np.nan`` for invalid numbers.
+    """
+
     try:
         val = str(val).replace(" ", "")
         parts = val.split(".")
         if len(parts) > 2:
             val = "".join(parts[:-1]) + "." + parts[-1]
         return float(val)
-    except:
+    except:  # noqa: E722 - broad catch acceptable for cleaning
         return np.nan
 
 # --- Clean a single CSV file ---
-def clean_csv(input_path, output_path):
+def clean_csv(input_path: str, output_path: str) -> None:
+    """Load, sanitise and save a single CSV file."""
+
     base_markers = determine_base_markers(input_path)
 
     try:
         df_raw = pd.read_csv(input_path, sep=';', header=None, dtype=str, encoding="cp1252")
-    except Exception as e:
+    except Exception as e:  # pragma: no cover - logging only
         print(f"❌ Failed to read {input_path}: {e}")
         return
 

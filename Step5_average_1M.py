@@ -1,3 +1,5 @@
+"""Average multiple recordings of the same probant and experiment."""
+
 import os
 import pandas as pd
 import numpy as np
@@ -15,7 +17,9 @@ NORMALIZE_START = True
 EXPERIMENTS = ["kreis", "ptp", "ptp2", "ptp3", "zikzak", "sequentiell"]
 
 # --- Utility Functions ---
-def normalize_start(df):
+def normalize_start(df: pd.DataFrame) -> pd.DataFrame:
+    """Shift trajectories so that each marker starts at the origin."""
+
     for marker in MARKERS:
         for axis in AXES:
             col = f"{marker}_{axis}"
@@ -23,7 +27,9 @@ def normalize_start(df):
                 df[col] -= df[col].iloc[0]
     return df
 
-def resample_df(df, target_len):
+def resample_df(df: pd.DataFrame, target_len: int) -> pd.DataFrame:
+    """Linearly resample each column to ``target_len`` rows."""
+
     def safe_interp(col):
         col = col.astype(float)
         if col.isna().all():
@@ -31,11 +37,14 @@ def resample_df(df, target_len):
         return np.interp(
             np.linspace(0, len(col) - 1, target_len),
             np.arange(len(col)),
-            col
+            col,
         )
+
     return df.apply(safe_interp)
 
-def get_probant_and_experiment(filename):
+def get_probant_and_experiment(filename: str):
+    """Extract probant and experiment name from ``filename``."""
+
     name = os.path.basename(filename).lower()
     match = re.search(r"probant\d+", name)
     probant = match.group(0) if match else None
