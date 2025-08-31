@@ -1,3 +1,5 @@
+"""Cluster averaged data by demographic groups and plot aggregated curves."""
+
 import os
 import pandas as pd
 import numpy as np
@@ -49,15 +51,19 @@ probanten_dict = {
     37: {'Alter': '21-25', 'Geschlecht': 'Männlich'},
 }
 
-def get_meta(probant_str):
+def get_meta(probant_str: str):
+    """Return gender and age group for a given probant string."""
+
     try:
         num = int(probant_str.replace("probant", ""))
         meta = probanten_dict.get(num, {'Alter': '21-25', 'Geschlecht': 'Männlich'})
         return meta['Geschlecht'], meta['Alter']
-    except:
+    except:  # noqa: E722 - fallback is fine here
         return 'Männlich', '21-25'
 
-def resample_df(df, target_len):
+def resample_df(df: pd.DataFrame, target_len: int) -> pd.DataFrame:
+    """Resample ``df`` to ``target_len`` rows using linear interpolation."""
+
     df_interp = {}
     for col in df.columns:
         if col == "Frame":
@@ -72,11 +78,13 @@ def resample_df(df, target_len):
         df_interp[col] = y_new
     return pd.DataFrame(df_interp)
 
-def plot_derivatives_scalar_style(df, out_dir, markers=MARKERS, axes=AXES):
+def plot_derivatives_scalar_style(df: pd.DataFrame, out_dir: str, markers=MARKERS, axes=AXES):
+    """Plot velocity/acceleration magnitudes for ``df`` and store a PNG."""
+
     frame = df["Frame"].values
 
     from scipy.ndimage import median_filter
-    
+
     def compute_scalar(df, marker_id):
         vs, accs = [], []
         for axis in AXES:
@@ -89,8 +97,8 @@ def plot_derivatives_scalar_style(df, out_dir, markers=MARKERS, axes=AXES):
                 accs.append(a)
 
         if len(vs) == 3:
-            vel = np.sqrt(vs[0]**2 + vs[1]**2 + vs[2]**2)
-            acc = np.sqrt(accs[0]**2 + accs[1]**2 + accs[2]**2)
+            vel = np.sqrt(vs[0] ** 2 + vs[1] ** 2 + vs[2] ** 2)
+            acc = np.sqrt(accs[0] ** 2 + accs[1] ** 2 + accs[2] ** 2)
 
             # --- Glättung & Spike-Entfernung für Geschwindigkeit ---
             win_v = 11 if len(vel) >= 11 else len(vel) // 2 * 2 + 1
@@ -135,7 +143,9 @@ def plot_derivatives_scalar_style(df, out_dir, markers=MARKERS, axes=AXES):
     plt.savefig(os.path.join(out_dir, "velocity_acc_scalar.png"))
     plt.close()
 
-def save_cluster_average(mode, cluster_key, experiment, dfs):
+def save_cluster_average(mode: str, cluster_key: str, experiment: str, dfs: list):
+    """Average all ``dfs`` and store results and plots in the cluster folder."""
+
     if len(dfs) < 2:
         print(f"⚠️ Not enough data for {mode}/{cluster_key} - {experiment}")
         return

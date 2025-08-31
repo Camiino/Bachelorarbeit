@@ -1,3 +1,5 @@
+"""Visualise 3D marker trajectories from a processed CSV file."""
+
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt

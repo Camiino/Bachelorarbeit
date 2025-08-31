@@ -1,3 +1,12 @@
+"""Convert raw CSV files to a normalized format.
+
+This script walks through the ``Exports/Daten_Raw`` tree and rewrites each
+CSV file so that all rows have the same number of columns and the delimiter is
+switched from a comma to a semicolon. The result is stored in
+``Exports/Daten_Raw_Formatted`` and serves as the starting point for the later
+cleaning steps.
+"""
+
 import os
 import csv
 
@@ -8,7 +17,15 @@ output_root = "Exports/Daten_Raw_Formatted"
 # --- Ensure output root exists ---
 os.makedirs(output_root, exist_ok=True)
 
-def clean_and_convert_file(input_path, output_path):
+
+def clean_and_convert_file(input_path: str, output_path: str) -> None:
+    """Normalize a single CSV file.
+
+    The raw export uses commas as separators and can have varying numbers of
+    columns per row. This function pads missing columns, replaces the delimiter
+    with semicolons and writes the cleaned file to ``output_path``.
+    """
+
     try:
         with open(input_path, "r", encoding="cp1252") as f:
             lines = [line.strip() for line in f if line.strip()]

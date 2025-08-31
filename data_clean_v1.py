@@ -1,3 +1,5 @@
+"""Prototype script for cleaning a single CSV file."""
+
 import pandas as pd
 import numpy as np
 import re

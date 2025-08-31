@@ -1,3 +1,5 @@
+"""Plot scalar velocity and acceleration for each marker."""
+
 import os
 import pandas as pd
 import numpy as np
@@ -16,8 +18,9 @@ AXES = ["X", "Y", "Z"]
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 files = glob(f"{INPUT_DIR}/*_final_clean.csv")
 
-def compute_scalar_velocity_and_acceleration(df, marker_id):
-    # Compute v = ||(vx, vy, vz)|| and a = ||(ax, ay, az)|| for a given marker
+def compute_scalar_velocity_and_acceleration(df: pd.DataFrame, marker_id: int):
+    """Return smoothed velocity and acceleration magnitudes for ``marker_id``."""
+
     vs = []
     accs = []
     for axis in AXES:
@@ -29,8 +32,8 @@ def compute_scalar_velocity_and_acceleration(df, marker_id):
             vs.append(v)
             accs.append(a)
     if len(vs) == 3:
-        vel_norm = np.sqrt(vs[0]**2 + vs[1]**2 + vs[2]**2)
-        acc_norm = np.sqrt(accs[0]**2 + accs[1]**2 + accs[2]**2)
+        vel_norm = np.sqrt(vs[0] ** 2 + vs[1] ** 2 + vs[2] ** 2)
+        acc_norm = np.sqrt(accs[0] ** 2 + accs[1] ** 2 + accs[2] ** 2)
 
         # Smooth the results using Savitzky-Golay filter
         window_v = 9 if len(vel_norm) >= 9 else len(vel_norm) // 2 * 2 + 1

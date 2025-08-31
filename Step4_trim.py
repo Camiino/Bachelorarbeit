@@ -1,3 +1,5 @@
+"""Truncate recordings once movement stops."""
+
 import os
 import pandas as pd
 import numpy as np
@@ -12,7 +14,14 @@ WINDOW_SIZE = 60            # Number of frames for rolling window
 MOVEMENT_THRESHOLD = 3      # Threshold in mm/frame
 
 # --- Helper Function ---
-def compute_trimmed_df(df):
+def compute_trimmed_df(df: pd.DataFrame) -> pd.DataFrame:
+    """Return ``df`` truncated after the last significant movement.
+
+    Movement is approximated via a rolling mean over frame-to-frame distances.
+    Once the mean falls below ``MOVEMENT_THRESHOLD`` for the remainder of the
+    recording, trailing frames are removed.
+    """
+
     original_cols = df.columns.tolist()
     frame_col = df.columns[0]  # Keep first column (e.g. "Frame")
     marker_cols = [col for col in df.columns if any(axis in col for axis in ['_X', '_Y', '_Z'])]
@@ -25,7 +34,7 @@ def compute_trimmed_df(df):
 
     distances = [0.0]
     for i in range(1, len(marker_df)):
-        distances.append(frame_distance(marker_df.iloc[i], marker_df.iloc[i-1]))
+        distances.append(frame_distance(marker_df.iloc[i], marker_df.iloc[i - 1]))
 
     df["frame_distance"] = distances
     df["rolling_mean_movement"] = df["frame_distance"].rolling(WINDOW_SIZE).mean()
@@ -33,7 +42,7 @@ def compute_trimmed_df(df):
     threshold_crossed = df[df["rolling_mean_movement"] > MOVEMENT_THRESHOLD].index
     if len(threshold_crossed) > 0:
         last_active_idx = threshold_crossed[-1]
-        df_trimmed = df.iloc[:last_active_idx + 1].copy()
+        df_trimmed = df.iloc[: last_active_idx + 1].copy()
         print(f"✅ Truncated at frame {last_active_idx} (of {len(df)}).")
     else:
         df_trimmed = df.copy()
